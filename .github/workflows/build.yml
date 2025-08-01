@@ -27,13 +27,13 @@ jobs:
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: 'Tar files'
-        run: tar -czvf build.tar.gz ./index.md
+        run: mkdir -p output && tar -czvf output/build.tar.gz ./index.md
 
       - name: Archive calendar file
         uses: actions/upload-pages-artifact@v3.0.1
         with:
           name: github-pages
-          path: build.tar.gz
+          path: output/
           retention-days: 14
 
   deploy:
