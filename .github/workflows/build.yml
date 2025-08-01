@@ -34,8 +34,6 @@ jobs:
         with:
           name: github-pages
           path: build.tar.gz
-          if-no-files-found: error
-          compression-level: 9
           retention-days: 14
 
   deploy:
