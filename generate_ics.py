@@ -7,6 +7,6 @@ assert url, "SOURCE_URL environment variable not set"
 
 if __name__ == '__main__':
     calendar = generate_calendar(url)
-    filename = 'bin-calendar.ics'
+    filename = os.getenv('OUTPUT_FILENAME', 'bin-calendar.ics')
     with open(filename, 'w+') as f:
         f.writelines(calendar.serialize_iter())

@@ -23,12 +23,13 @@ jobs:
           python3 generate_ics.py
 
         env:
+          OUTPUT_FILENAME: index.md
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: Archive calendar file
         uses: actions/upload-artifact@v4
         with:
-          name: index.md
+          name: bin-calendar
           path: bin-calendar.ics
           if-no-files-found: error
           compression-level: 9
@@ -55,4 +56,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: index.md
+          artifact_name: bin-calendar
