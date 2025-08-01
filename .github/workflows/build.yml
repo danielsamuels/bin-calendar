@@ -23,11 +23,11 @@ jobs:
           python3 generate_ics.py
 
         env:
-          OUTPUT_FILENAME: index.md
+          OUTPUT_FILENAME: index.html
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: 'Tar files'
-        run: mkdir -p output && tar -czvf output/build.tar.gz ./index.md
+        run: mkdir -p output && tar -czvf output/build.tar.gz ./index.html
 
       - name: Archive calendar file
         uses: actions/upload-pages-artifact@v3.0.1
