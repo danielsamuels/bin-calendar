@@ -24,16 +24,14 @@ jobs:
           python3 generate_ics.py
 
         env:
-          OUTPUT_FILENAME: output/index.html
+          OUTPUT_FILENAME: output/index.md
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: Archive calendar file
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
           path: output/
-          if-no-files-found: error
-          compression-level: 9
           retention-days: 14
 
   deploy:
