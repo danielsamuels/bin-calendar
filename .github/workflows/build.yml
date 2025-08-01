@@ -24,7 +24,7 @@ jobs:
           python3 generate_ics.py
 
         env:
-          OUTPUT_FILENAME: output/index.md
+          OUTPUT_FILENAME: output/index.html
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: Archive calendar file
