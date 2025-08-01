@@ -26,11 +26,14 @@ jobs:
           OUTPUT_FILENAME: index.md
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
+      - name: 'Tar files'
+        run: tar -czvf build.tar.gz ./index.md
+
       - name: Archive calendar file
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: bin-calendar
-          path: index.md
+          name: github-pages
+          path: build.tar.gz
           if-no-files-found: error
           compression-level: 9
           retention-days: 14
@@ -54,5 +57,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          artifact_name: bin-calendar
