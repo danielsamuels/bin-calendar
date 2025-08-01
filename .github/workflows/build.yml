@@ -18,12 +18,13 @@ jobs:
 
       - name: Build .ics file
         run: |
+          mkdir -p output
           python3 -m pip install --upgrade pip
           pip install -r requirements.txt
           python3 generate_ics.py
 
         env:
-          OUTPUT_FILENAME: index.html
+          OUTPUT_FILENAME: output/index.html
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
       - name: Archive calendar file
