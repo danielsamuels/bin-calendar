@@ -30,7 +30,7 @@ jobs:
         run: tar -czvf build.tar.gz ./index.md
 
       - name: Archive calendar file
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v3.0.1
         with:
           name: github-pages
           path: build.tar.gz
