@@ -28,8 +28,10 @@ jobs:
       - name: Archive calendar file
         uses: actions/upload-artifact@v4
         with:
-          name: github-pages
+          name: index.md
           path: bin-calendar.ics
+          if-no-files-found: error
+          compression-level: 9
           retention-days: 14
 
   deploy:
