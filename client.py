@@ -76,7 +76,9 @@ class Collection:
         if not element:
             return None
 
-        return element.string
+        value = element.string
+        value = value.replace(" or Brown", "")
+        return value
 
     @property
     def date(self):
