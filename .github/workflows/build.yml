@@ -26,14 +26,11 @@ jobs:
           OUTPUT_FILENAME: index.md
           SOURCE_URL: ${{ secrets.SOURCE_URL }}
 
-      - name: 'Tar files'
-        run: tar -czvf build.tar.gz ./index.md
-
       - name: Archive calendar file
         uses: actions/upload-artifact@v4
         with:
           name: bin-calendar
-          path: build.tar.gz
+          path: index.md
           if-no-files-found: error
           compression-level: 9
           retention-days: 14
