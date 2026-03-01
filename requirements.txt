@@ -2,3 +2,4 @@ beautifulsoup4==4.13.4
 ics==0.7.2
 python-dateutil==2.9.0.post0
 requests==2.32.4
+tatsu==5.8.0
