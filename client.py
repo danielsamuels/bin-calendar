@@ -72,7 +72,7 @@ def fetch_collections(uprn: str, auth_token: str) -> list[dict]:
         # Extract date from the end of the label
         date_str = label.rsplit(" - ", 1)[-1]
         collection_date = datetime.strptime(date_str, "%d/%m/%Y")
-        collections.append({"name": name, "date": collection_date})
+        collections.append({"name": name.title(), "date": collection_date})
 
     return collections
 
@@ -102,7 +102,13 @@ class CollectionDate:
     @property
     def as_ical(self):
         event = Event()
-        event.name = ' and '.join(c.type for c in self._collections)
+        names = [c.type for c in self._collections]
+        if len(names) == 1:
+            event.name = names[0]
+        elif len(names) == 2:
+            event.name = f"{names[0]} and {names[1]}"
+        else:
+            event.name = ', '.join(names[:-1]) + f" and {names[-1]}"
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
         return event
