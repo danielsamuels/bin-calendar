@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from functools import reduce
 
+import arrow
 import requests
 from ics import Calendar, Event
 
@@ -88,6 +89,7 @@ class Collection:
         event.name = self.type
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
+        event.created = arrow.now()
         return event
 
 
@@ -111,6 +113,7 @@ class CollectionDate:
             event.name = ', '.join(names[:-1]) + f" and {names[-1]}"
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
+        event.created = arrow.now()
         return event
 
 
