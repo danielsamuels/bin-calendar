@@ -1,94 +1,86 @@
+from datetime import date, datetime, timedelta
 from functools import reduce
 
 import requests
-from bs4 import BeautifulSoup
-from dateutil.parser import parse
 from ics import Calendar, Event
 
 
-class Page:
-    def __init__(self, resp):
-        self.resp = resp
+BASE_URL = "https://eastcambs-self.achieveservice.com"
+LOOKUP_ID = "6784e74793b68"
+STAGE_ID = "AF-Stage-94ee5097-94db-474d-bc7a-d1796e3ab83a"
+FORM_ID = "AF-Form-b10c1e46-e09b-4c18-a31f-b1113609860a"
 
-    @property
-    def soup(self):
-        return BeautifulSoup(self.resp.content, 'html.parser')
 
-    @property
-    def collections(self):
-        collections = self.soup.find_all('div', class_='collectionsrow')
+def fetch_collections(uprn: str, auth_token: str) -> list[dict]:
+    """Fetch bin collection data from the East Cambs API.
 
-        return [
-            Collection(el)
-            for el in collections
-            if Collection(el).is_entry
-        ]
+    Returns a list of dicts with 'name' and 'date' keys.
+    """
+    session = requests.Session()
 
-    @property
-    def collections_by_date(self):
-        """Collections, grouped by date"""
-        def date_reducer(output, collection):
-            date = collection.date.date()
+    # Establish a PHP session
+    session.get(BASE_URL)
+    sid = session.cookies["PHPSESSID"]
 
-            if date not in output:
-                output[date] = [collection]
-            else:
-                output[date].append(collection)
+    today = date.today()
+    min_date = today.strftime("%Y-%m-%d")
+    max_date = (today + timedelta(days=42)).strftime("%Y-%m-%d")
 
-            return output
+    payload = {
+        "stopOnFailure": True,
+        "usePHPIntegrations": True,
+        "stage_id": STAGE_ID,
+        "stage_name": "New",
+        "formId": FORM_ID,
+        "formValues": {
+            "Section 1": {
+                "AuthenticateResponse": {"value": auth_token},
+                "uprn": {"value": uprn},
+                "selected_uprn": {"value": uprn},
+                "selected_uprn_old": {"value": uprn},
+                "MinimumDateForNextDates": {"value": min_date},
+                "MaximumDateFormattedNext": {"value": max_date},
+            }
+        },
+    }
 
-        dates = reduce(date_reducer, self.collections, dict())
-        return [
-            CollectionDate(collections)
-            for collections in dates.values()
-        ]
+    api_url = (
+        f"{BASE_URL}/apibroker/runLookup"
+        f"?id={LOOKUP_ID}&repeat_against=&noRetry=false"
+        f"&getOnlyTokens=undefined&log_id="
+        f"&app_name=AF-Renderer::Self&sid={sid}"
+    )
 
-    @property
-    def as_ical(self):
-        ical = Calendar()
+    headers = {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
 
-        # Dump out the ical headers
+    resp = session.post(api_url, json=payload, headers=headers)
+    resp.raise_for_status()
 
-        # Then each of the collection items
-        for collection in self.collections_by_date:
-            ical.events.add(collection.as_ical)
+    data = resp.json()
+    if data.get("status") != "done":
+        raise RuntimeError(f"API returned unexpected status: {data.get('status')}")
 
-        return ical
+    select_data = data["integration"]["transformed"]["select_data"]
+
+    collections = []
+    for entry in select_data:
+        label = entry["label"]  # e.g. "RECYCLING BIN - 240L - 05/06/2026"
+        name = entry["value"]   # e.g. "RECYCLING BIN - 240L"
+        # Extract date from the end of the label
+        date_str = label.rsplit(" - ", 1)[-1]
+        collection_date = datetime.strptime(date_str, "%d/%m/%Y")
+        collections.append({"name": name, "date": collection_date})
+
+    return collections
 
 
 class Collection:
-    TYPE_SELECTOR = 'col-sm-4'
-    DATE_SELECTOR = 'col-sm-6'
-
-    def __init__(self, el):
-        self.el = el
-        # col-sm-4 -> "Black Bag"
-        # col-sm-6 -> "Sat - 11 May 2019"
-
-    @property
-    def is_entry(self):
-        return self.type and self.date
-
-    @property
-    def type(self):
-        element = self.el.find('div', class_=self.TYPE_SELECTOR)
-
-        if not element:
-            return None
-
-        value = element.string
-        value = value.replace(" or Brown", "")
-        return value
-
-    @property
-    def date(self):
-        element = self.el.find('div', class_=self.DATE_SELECTOR)
-
-        if not element:
-            return None
-
-        parsed_date = parse(element.string)
-        return parsed_date.replace(hour=7, minute=50)
+    def __init__(self, name: str, collection_date: datetime):
+        self.type = name
+        self.date = collection_date.replace(hour=7, minute=50)
 
     @property
     def as_ical(self):
@@ -100,7 +92,7 @@ class Collection:
 
 
 class CollectionDate:
-    def __init__(self, collections):
+    def __init__(self, collections: list[Collection]):
         self._collections = collections
 
     @property
@@ -110,15 +102,35 @@ class CollectionDate:
     @property
     def as_ical(self):
         event = Event()
-        event.name = ' and '.join(collection.type for collection in self._collections)
+        event.name = ' and '.join(c.type for c in self._collections)
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
         return event
 
 
-def generate_calendar(url) -> Calendar:
-    resp = requests.get(url)
-    resp.raise_for_status()
+def generate_calendar(uprn: str, auth_token: str) -> Calendar:
+    """Fetch collection data and generate an iCal calendar."""
+    raw_collections = fetch_collections(uprn, auth_token)
 
-    page = Page(resp)
-    return page.as_ical
+    collections = [
+        Collection(entry["name"], entry["date"])
+        for entry in raw_collections
+    ]
+
+    # Group by date
+    def date_reducer(output, collection):
+        d = collection.date.date()
+        if d not in output:
+            output[d] = [collection]
+        else:
+            output[d].append(collection)
+        return output
+
+    grouped = reduce(date_reducer, collections, {})
+    collection_dates = [CollectionDate(colls) for colls in grouped.values()]
+
+    ical = Calendar()
+    for cd in collection_dates:
+        ical.events.add(cd.as_ical)
+
+    return ical

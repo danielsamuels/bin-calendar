@@ -25,7 +25,8 @@ jobs:
 
         env:
           OUTPUT_FILENAME: output/index.html
-          SOURCE_URL: ${{ secrets.SOURCE_URL }}
+          UPRN: ${{ secrets.UPRN }}
+          AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
 
       - name: Archive calendar file
         uses: actions/upload-pages-artifact@v3
