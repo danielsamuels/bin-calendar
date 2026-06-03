@@ -28,6 +28,19 @@ jobs:
           UPRN: ${{ secrets.UPRN }}
           AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
 
+      - name: Verify calendar has events
+        run: |
+          echo "=== Generated calendar content ==="
+          cat output/index.html
+          echo ""
+          echo "=== File size ==="
+          wc -c output/index.html
+          if ! grep -q "^BEGIN:VEVENT" output/index.html; then
+            echo "ERROR: Calendar contains no events — AUTH_TOKEN may have expired."
+            exit 1
+          fi
+          echo "Calendar OK: $(grep -c '^BEGIN:VEVENT' output/index.html) event(s) found."
+
       - name: Archive calendar file
         uses: actions/upload-pages-artifact@v3
         with:
