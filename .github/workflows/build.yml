@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+  pull_request:
   schedule:
     - cron: '18 7 */5 * *'
 
@@ -26,7 +27,16 @@ jobs:
         env:
           OUTPUT_FILENAME: output/index.html
           UPRN: ${{ secrets.UPRN }}
-          AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+
+      - name: Verify calendar has events
+        run: |
+          count=$(grep -c "^BEGIN:VEVENT" output/index.html || true)
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: Calendar contains no events"
+            cat output/index.html
+            exit 1
+          fi
+          echo "Calendar OK: $count event(s) found"
 
       - name: Archive calendar file
         uses: actions/upload-pages-artifact@v3
@@ -37,6 +47,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/master'
 
     runs-on: ubuntu-latest
     environment:
