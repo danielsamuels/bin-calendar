@@ -13,9 +13,14 @@ jobs:
     environment:
       name: bin-calendar
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build .ics file
         run: |
@@ -44,6 +49,38 @@ jobs:
           name: github-pages
           path: output/
           retention-days: 14
+
+      # GitHub disables scheduled workflows in public repositories after 60 days
+      # with no repository activity, so push the generated calendar back to the
+      # repo to keep the schedule alive. When the collection dates haven't
+      # changed there is nothing to commit, so fall back to an empty commit once
+      # we get close to the cutoff. Pushes made with GITHUB_TOKEN don't trigger
+      # workflows, so this can't loop despite the push trigger above.
+      - name: Commit calendar
+        if: github.ref == 'refs/heads/master'
+        run: |
+          cp output/index.html bin-calendar.ics
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bin-calendar.ics
+
+          if git diff --cached --quiet; then
+            age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+            echo "Collection dates unchanged (last commit ${age} day(s) ago)"
+            if [ "$age" -lt 45 ]; then
+              echo "Nothing to do"
+              exit 0
+            fi
+            git commit --allow-empty -m "Keepalive: prevent scheduled workflow suspension"
+          else
+            git commit -m "Update bin collection dates"
+          fi
+
+          git push origin HEAD:master || {
+            echo "Push rejected, rebasing onto latest master and retrying"
+            git pull --rebase origin master
+            git push origin HEAD:master
+          }
 
   deploy:
     needs: build
