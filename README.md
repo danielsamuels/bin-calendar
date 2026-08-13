@@ -8,6 +8,8 @@ The tool queries the East Cambs "AchieveService" API to fetch upcoming bin colle
 
 Collections on the same date are merged into a single event (e.g. "RECYCLING BIN - 240L and OUTDOOR FOOD CADDY"). Events are set to 07:50–08:10 as a morning reminder to put the bins out.
 
+Output is deterministic: event UIDs are derived from the collection date, `DTSTAMP` is pinned to the event start, and events are sorted by date. Regenerating from unchanged collection data produces a byte-identical file, so calendar clients update events in place rather than treating every refresh as a delete-and-recreate.
+
 ## Setup
 
 ### Requirements
@@ -63,6 +65,12 @@ Configure these repository secrets in the `bin-calendar` environment:
 - `AUTH_TOKEN` — The API authentication token
 
 The deployed calendar is served as `index.html` (with `text/calendar` content) at your GitHub Pages URL. Subscribe to this URL in your calendar app.
+
+#### Keeping the schedule alive
+
+GitHub automatically disables scheduled workflows in public repositories after 60 days with no repository activity. To avoid that, the workflow commits the generated calendar back to the repo as `bin-calendar.ics`, which counts as activity and resets the timer.
+
+Because the output is deterministic, a commit only happens when the collection dates actually change. If nothing has changed and the last commit is more than 45 days old, an empty keepalive commit is pushed instead. The job needs `permissions: contents: write`; pushes made with `GITHUB_TOKEN` don't trigger workflows, so this doesn't cause a run loop despite the `push` trigger.
 
 ### AWS Lambda
 
