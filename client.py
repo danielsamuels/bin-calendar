@@ -9,6 +9,7 @@ from ics import Calendar, Event
 
 
 BASE_URL = "https://eastcambs-self.achieveservice.com"
+UID_DOMAIN = "bin-calendar"
 LOOKUP_ID = "6784e74793b68"
 STAGE_ID = "AF-Stage-94ee5097-94db-474d-bc7a-d1796e3ab83a"
 FORM_ID = "AF-Form-b10c1e46-e09b-4c18-a31f-b1113609860a"
@@ -207,6 +208,18 @@ def fetch_collections(uprn: str, auth_token: str = "") -> list[dict]:
     return collections
 
 
+def uid_for_date(collection_date: datetime) -> str:
+    """Build a stable UID for a collection date.
+
+    The calendar is regenerated from scratch on every run, so UIDs must be
+    derived from the data rather than randomly generated - otherwise clients
+    treat each refresh as a delete-and-recreate of every event, and the output
+    file differs on every run even when the collection schedule hasn't changed.
+    Events are grouped one-per-date, so the date is a natural stable key.
+    """
+    return f"{collection_date:%Y%m%d}@{UID_DOMAIN}"
+
+
 class Collection:
     def __init__(self, name: str, collection_date: datetime):
         self.type = name
@@ -218,7 +231,8 @@ class Collection:
         event.name = self.type
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
-        event.created = arrow.now()
+        event.uid = uid_for_date(self.date)
+        event.created = arrow.get(self.date)
         return event
 
 
@@ -242,7 +256,8 @@ class CollectionDate:
             event.name = ', '.join(names[:-1]) + f" and {names[-1]}"
         event.begin = self.date
         event.end = self.date.replace(hour=8, minute=10)
-        event.created = arrow.now()
+        event.uid = uid_for_date(self.date)
+        event.created = arrow.get(self.date)
         return event
 
 
@@ -260,8 +275,9 @@ def generate_calendar(uprn: str, auth_token: str = "") -> Calendar:
     grouped = reduce(date_reducer, collections, {})
     collection_dates = [CollectionDate(colls) for colls in grouped.values()]
 
+    # Sort by start date: Calendar.events is a set by default, so serialisation
+    # order otherwise varies between runs even for identical input.
     ical = Calendar()
-    for cd in collection_dates:
-        ical.events.add(cd.as_ical)
+    ical.events = sorted((cd.as_ical for cd in collection_dates), key=lambda e: e.begin)
 
     return ical
